@@ -14,7 +14,7 @@
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 #define CREATE "0"
-#define LOGOUT "1"
+#define LOGOUT "cerrar sesion\n"
 #define OK "OK"
 
 struct in_request
@@ -31,9 +31,11 @@ struct user
 {
     mqd_t qd_id;
     char* username;
+    char* inbox[MAX_MSG_SIZE];
 };
 
 struct in_request decode(char* input);
+int isUserExists(char* tryUsername);
 mqd_t qd_server;   // queue descriptors
 struct user all_users[MAX_MESSAGES];// = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));//Asumiendo que solo recibo un request por usuario
 
@@ -69,6 +71,14 @@ int main (int argc, char **argv)
 
         user_request = decode(in_buffer);
         if(!strcmp(user_request.request_id, CREATE)){
+            int userIndex = isUserExists(user_request.username);
+            if( userIndex == -1){
+                int indexNewUser = findNextAvailable();
+                all_users[indexNewUser].qd_id = user_request.qd_id;
+                all_users[indexNewUser].username = user_request.username;
+            }else{
+                all_users[userIndex].qd_id = user_request.qd_id;
+            }
             sprintf(out_buffer, "%s", OK);
             if (mq_send (user_request.qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
                 perror ("Server: Not able to send message to client");
@@ -106,14 +116,9 @@ struct in_request decode(char* input){
     in_request_data.username = strtok(NULL, "&");
     if (strcmp(in_request_data.request_id, CREATE) == 0)
     {
-        int indexNewUser = findNextAvailable();
-        printf("NEXT AVAILABE: %d\n", indexNewUser);
         if ((in_request_data.qd_id = mq_open (in_request_data.user_id, O_WRONLY)) == 1) {
             perror ("Server: Not able to open client queue");
             //continue;
-        }else{
-            all_users[indexNewUser].qd_id = in_request_data.qd_id;
-            all_users[indexNewUser].username = in_request_data.username;
         }
     }
     else if (!strcmp(in_request_data.request_id, "enviar")){
@@ -130,6 +135,17 @@ int findNextAvailable(){
     for(i=0; i<MAX_MESSAGES; i++){
         if(all_users[i].qd_id == 0)
             return i;
+    }
+    return -1;
+}
+
+int isUserExists(char* tryUsername){
+    int i;
+    for(i=0; i<MAX_MESSAGES; i++){
+        if(all_users[i].username != NULL && !strcmp(all_users[i].username, tryUsername)){
+            printf("%s\n", "EXISTS!!!");
+            return i;
+        }
     }
     return -1;
 }
