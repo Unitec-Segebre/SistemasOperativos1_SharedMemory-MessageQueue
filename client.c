@@ -75,9 +75,12 @@ int main (int argc, char **argv)
     printf ("Bienvenido: %s", client_username);
 
     while(1){
+        /*
+        log out
+        */
         fgets (option, 64, stdin);
         if(!strcmp(option, LOGOUT)){
-            printf("%s\n", "Bye!");
+            printf("Ten un buen dia %s!\n", client_username);
             return 0;
         }
 
