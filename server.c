@@ -14,7 +14,7 @@
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 #define CREATE "0"
-#define LOGOUT "cerrar sesion\n"
+#define LOGOUT "cerrar sesion"
 #define OK "OK"
 
 struct in_request

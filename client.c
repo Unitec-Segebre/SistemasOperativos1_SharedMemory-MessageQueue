@@ -14,8 +14,8 @@
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 #define CREATE "0"
-#define LOGOUT "cerrar sesion\n"
-#define SEND "enviar mensaje\n"
+#define LOGOUT "cerrar sesion"
+#define SEND "enviar mensaje"
 #define OK "OK"
 
 struct client
@@ -23,8 +23,8 @@ struct client
     char queue_name[64];
     char option[64];
     char username[64];
-    char Destino[64];
-    char message[MSG_BUFFER_SIZE];
+    char destino[64];
+    char mensaje[MSG_BUFFER_SIZE];
 };
 
 int main (int argc, char **argv)
@@ -58,8 +58,7 @@ int main (int argc, char **argv)
 
 
     printf ("Porfavor ingrese su nombre de usuario: ");
-    //fgets (client_username, 64, stdin);
-    scanf("%s", request.username);
+    getInput(request.username);
     sprintf(out_buffer, "%s&%s&%s&", request.queue_name, CREATE, request.username);
 
     // send login request
@@ -72,6 +71,7 @@ int main (int argc, char **argv)
 
 
     //receive confirmation
+    memset(in_buffer, 0, MSG_BUFFER_SIZE);
     if (mq_receive (qd_client, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
             perror ("Client: mq_receive");
             exit (1);
@@ -80,7 +80,6 @@ int main (int argc, char **argv)
             printf("%s\n", in_buffer);
             return 0;
         }
-        memset(in_buffer, 0, MSG_BUFFER_SIZE);
     }
     printf ("Bienvenido: %s\n", request.username);
 
@@ -88,13 +87,16 @@ int main (int argc, char **argv)
         /*
         log out
         */
-        fgets (request.option, 64, stdin);
+        getInput(request.option);
         if(!strcmp(request.option, LOGOUT)){
             printf("Ten un buen dia %s!\n", request.username);
             return 0;
         }else if(!strcmp(request.option, SEND)){
             printf ("Destino: ");
-            scanf("%s", request.username);
+            getInput(request.destino);
+            printf ("Mensaje: ");
+            getInput(request.mensaje);
+            printf("Destino: %s\nMensaje: %s\n", request.destino, request.mensaje);
         }
 
     }
@@ -134,4 +136,10 @@ int main (int argc, char **argv)
     printf ("Client: bye\n");
 
     exit (0);
+}
+
+int getInput(char* target){
+    fgets (target, MAX_MSG_SIZE, stdin);
+    target = strtok(target, "\n");
+    return 1;
 }
