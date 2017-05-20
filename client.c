@@ -15,6 +15,7 @@
 
 #define CREATE "0"
 #define LOGOUT "cerrar sesion\n"
+#define OK "OK"
 
 int main (int argc, char **argv)
 {
@@ -47,19 +48,29 @@ int main (int argc, char **argv)
 
 
     printf ("Porfavor ingrese su nombre de usuario: ");
-    fgets (client_username, 64, stdin);
-    sprintf(out_buffer, "%s&%s&%s", client_queue_name, CREATE, client_username);
+    //fgets (client_username, 64, stdin);
+    scanf("%s", client_username);
+    sprintf(out_buffer, "%s&%s&%s&", client_queue_name, CREATE, client_username);
 
     // send login request
     if (mq_send (qd_server, out_buffer, strlen (out_buffer), 0) == -1) {
         perror ("Client: Not able to send message to server");
         //continue;
+    }else{
+        memset(out_buffer, 0, MSG_BUFFER_SIZE);
     }
+
 
     //receive confirmation
     if (mq_receive (qd_client, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
             perror ("Client: mq_receive");
             exit (1);
+    }else{
+        if((strcmp(in_buffer, OK))){
+            printf("%s\n", in_buffer);
+            return 0;
+        }
+        memset(in_buffer, 0, MSG_BUFFER_SIZE);
     }
     printf ("Bienvenido: %s", client_username);
 
@@ -67,6 +78,7 @@ int main (int argc, char **argv)
         fgets (option, 64, stdin);
         if(!strcmp(option, LOGOUT)){
             printf("%s\n", "Bye!");
+            return 0;
         }
 
     }
