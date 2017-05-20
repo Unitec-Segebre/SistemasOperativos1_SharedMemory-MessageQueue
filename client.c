@@ -15,19 +15,29 @@
 
 #define CREATE "0"
 #define LOGOUT "cerrar sesion\n"
+#define SEND "enviar mensaje\n"
 #define OK "OK"
+
+struct client
+{
+    char queue_name[64];
+    char option[64];
+    char username[64];
+    char Destino[64];
+    char message[MSG_BUFFER_SIZE];
+};
 
 int main (int argc, char **argv)
 {
     mqd_t qd_server, qd_client;
     char in_buffer [MSG_BUFFER_SIZE];
     char out_buffer [MSG_BUFFER_SIZE];
-    char client_queue_name [64];
-    char client_username [64];
-    char option[64];
+    //char client_queue_name [64];
+    //char client_username [64];
+    struct client request;
     struct mq_attr attr;
 
-    sprintf (client_queue_name, "/user-%d", getpid());
+    sprintf (request.queue_name, "/user-%d", getpid());
 
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
@@ -35,7 +45,7 @@ int main (int argc, char **argv)
     attr.mq_curmsgs = 0;
 
     //Opens client queue descriptor
-    if ((qd_client = mq_open (client_queue_name, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
+    if ((qd_client = mq_open (request.queue_name, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
         perror ("Client: mq_open (client)");
         exit (1);
     }
@@ -49,8 +59,8 @@ int main (int argc, char **argv)
 
     printf ("Porfavor ingrese su nombre de usuario: ");
     //fgets (client_username, 64, stdin);
-    scanf("%s", client_username);
-    sprintf(out_buffer, "%s&%s&%s&", client_queue_name, CREATE, client_username);
+    scanf("%s", request.username);
+    sprintf(out_buffer, "%s&%s&%s&", request.queue_name, CREATE, request.username);
 
     // send login request
     if (mq_send (qd_server, out_buffer, strlen (out_buffer), 0) == -1) {
@@ -72,16 +82,19 @@ int main (int argc, char **argv)
         }
         memset(in_buffer, 0, MSG_BUFFER_SIZE);
     }
-    printf ("Bienvenido: %s", client_username);
+    printf ("Bienvenido: %s\n", request.username);
 
     while(1){
         /*
         log out
         */
-        fgets (option, 64, stdin);
-        if(!strcmp(option, LOGOUT)){
-            printf("Ten un buen dia %s!\n", client_username);
+        fgets (request.option, 64, stdin);
+        if(!strcmp(request.option, LOGOUT)){
+            printf("Ten un buen dia %s!\n", request.username);
             return 0;
+        }else if(!strcmp(request.option, SEND)){
+            printf ("Destino: ");
+            scanf("%s", request.username);
         }
 
     }
@@ -114,7 +127,7 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    if (mq_unlink (client_queue_name) == -1) {
+    if (mq_unlink (request.queue_name) == -1) {
         perror ("Client: mq_unlink");
         exit (1);
     }
