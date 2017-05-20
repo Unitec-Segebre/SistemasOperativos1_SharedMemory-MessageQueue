@@ -36,14 +36,15 @@ struct user
 
 struct in_request decode(char* input);
 int isUserExists(char* tryUsername);
-struct user all_users[MAX_MESSAGES];// = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));//Asumiendo que solo recibo un request por usuario
+struct user* all_users;// = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));//Asumiendo que solo recibo un request por usuario
 mqd_t qd_server;
 
 int main (int argc, char **argv)
 {
 
-    //Initialize all_users
     int i;
+    //Initialize all_users
+    all_users = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));
     for (i = 0; i < MAX_MESSAGES; i++)
     {
         all_users[i].qd_id = -1;
@@ -64,8 +65,8 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    char in_buffer [MSG_BUFFER_SIZE];
-    char out_buffer [MSG_BUFFER_SIZE];
+    char* in_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
+    char* out_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
 
     struct in_request user_request;
     static const struct in_request user_request_EmptyStruct;
@@ -89,9 +90,9 @@ int main (int argc, char **argv)
             int userIndex = isUserExists(user_request.username);
             if( userIndex == -1){
                 int indexNewUser = findNextAvailable();
-                printf("STATUS: new user - %s@%d\n", user_request.username, indexNewUser);
+                printf("STATUS: New user - %s@%d\n", user_request.username, indexNewUser);
                 if(indexNewUser == -1){
-                    printf("%s\n", "Server Full!");
+                    printf("%s\n", "STATUS: Server Full!");
                     sprintf(out_buffer, "%s", "Server Full, could not create connection!\n"); //Client side: when received doesnt do anything but continue
                 }else{
                     all_users[indexNewUser].qd_id = user_request.qd_id;
@@ -181,11 +182,9 @@ int findNextAvailable(){
 int isUserExists(char* tryUsername){
     int i;
     for(i=0; i<MAX_MESSAGES; i++){
-        if(all_users[i].username != NULL){
-            if(!strcmp(all_users[i].username, tryUsername)){
+        if(all_users[i].username != NULL && !strcmp(all_users[i].username, tryUsername)){
             printf("STATUS: Logged in! - %s\n", all_users[i].username);
             return i;
-            }
         }
     }
     return -1;
