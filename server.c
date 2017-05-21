@@ -15,6 +15,7 @@
 
 #define CREATE "0"
 #define LOGOUT "cerrar sesion"
+#define SEND "enviar mensaje"
 #define OK "OK"
 
 struct in_request
@@ -38,17 +39,23 @@ struct in_request decode(char* input);
 int isUserExists(char* tryUsername);
 struct user* all_users;// = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));//Asumiendo que solo recibo un request por usuario
 mqd_t qd_server;
+char* in_buffer;
+char* out_buffer;
 
 int main (int argc, char **argv)
 {
 
-    int i;
+    int i, j;
     //Initialize all_users
     all_users = (struct user*)malloc(MAX_MESSAGES*sizeof(struct user));
     for (i = 0; i < MAX_MESSAGES; i++)
     {
         all_users[i].qd_id = -1;
         all_users[i].username = (char*)malloc(64);
+        for(j = 0; j < MAX_MESSAGES; j++){
+            all_users[i].inbox[j] = (char*)malloc(MAX_MSG_SIZE);
+            memset(all_users[i].inbox[j], 0, MAX_MSG_SIZE);
+        }
     }
 
     printf ("Server: Up and Running Pollo's mail services!\n");
@@ -65,14 +72,15 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    char* in_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
-    char* out_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
+    in_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
+    out_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
 
     struct in_request user_request;
     static const struct in_request user_request_EmptyStruct;
 
 
     while (1) {
+        memset(in_buffer, 0, MSG_BUFFER_SIZE);
         if (mq_receive (qd_server, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
             perror ("Server: mq_receive");
             exit (1);
@@ -89,7 +97,7 @@ int main (int argc, char **argv)
         if(!strcmp(user_request.request_id, CREATE)){
             int userIndex = isUserExists(user_request.username);
             if( userIndex == -1){
-                int indexNewUser = findNextAvailable();
+                int indexNewUser = findNextAvailableUsers();
                 printf("STATUS: New user - %s@%d\n", user_request.username, indexNewUser);
                 if(indexNewUser == -1){
                     printf("%s\n", "STATUS: Server Full!");
@@ -105,9 +113,39 @@ int main (int argc, char **argv)
             }
             if (mq_send (user_request.qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
                 perror ("Server: Not able to send message to client");
+            }else{
+                memset(out_buffer, 0, MSG_BUFFER_SIZE);
+            }
+        }else if(!strcmp(user_request.request_id, SEND)){
+            int destinoInUsers = isUserExists(user_request.destino);
+            if(destinoInUsers != -1){
+                int targetInbox = findNextAvailableInbox(all_users[destinoInUsers]);
+                if(targetInbox == -1){
+                    sprintf(out_buffer, "No se pudo mandar mensaje, el usuario \"%s\" no puede recibir mas mensajes!", user_request.destino);
+                    if (mq_send (all_users[isUserExists(user_request.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                        perror ("Server: Not able to send message to client");
+                    }else{
+                        memset(out_buffer, 0, MSG_BUFFER_SIZE);
+                    }
+                }else{
+                    strcpy(all_users[destinoInUsers].inbox[targetInbox], user_request.mensaje);
+                    sprintf(out_buffer, "%s", OK);
+                    if (mq_send (all_users[isUserExists(user_request.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                        perror ("Server: Not able to send message to client");
+                    }else{
+                        memset(out_buffer, 0, MSG_BUFFER_SIZE);
+                    }
+                }
+
+            }else{
+                sprintf(out_buffer, "No se pudo mandar mensaje, el usuario \"%s\" no existe!", user_request.destino);
+                if (mq_send (all_users[isUserExists(user_request.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                    perror ("Server: Not able to send message to client");
+                }else{
+                    memset(out_buffer, 0, MSG_BUFFER_SIZE);
+                }
             }
         }
-        memset(in_buffer, 0, MSG_BUFFER_SIZE);
         /*else if(!strcmp(user_request.request_id, LOGOUT)){
             sprintf(out_buffer, "%s", OK); //Client side: when received doesnt do anything but continue
             if (mq_send (user_request.qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
@@ -161,16 +199,55 @@ struct in_request decode(char* input){
             //continue;
         }
     }
-    else if (!strcmp(in_request_data.request_id, "enviar")){
+    else if (!strcmp(in_request_data.request_id, SEND)){
         in_request_data.destino = strtok(NULL, "&");
         printf("destino: %s\n", in_request_data.destino);
         in_request_data.mensaje = strtok(NULL, "&");
-        printf("username: %s\n", in_request_data.mensaje);
+        printf("mensaje: %s\n", in_request_data.mensaje);
+
+        /*int destinoInUsers = isUserExists(in_request_data.destino);
+        if(destinoInUsers != -1){
+            int targetInbox = findNextAvailableInbox(all_users[destinoInUsers]);
+            if(targetInbox == -1){
+                sprintf(out_buffer, "No se pudo mandar mensaje, el usuario \"%s\" no puede recibir mas mensajes!", in_request_data.destino);
+                if (mq_send (all_users[isUserExists(in_request_data.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                    perror ("Server: Not able to send message to client");
+                }else{
+                    memset(out_buffer, 0, MSG_BUFFER_SIZE);
+                }
+            }else{
+                strcpy(all_users[destinoInUsers].inbox[targetInbox], in_request_data.mensaje);
+                sprintf(out_buffer, "%s", OK);
+                if (mq_send (all_users[isUserExists(in_request_data.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                    perror ("Server: Not able to send message to client");
+                }else{
+                    memset(out_buffer, 0, MSG_BUFFER_SIZE);
+                }
+            }
+
+        }else{
+            sprintf(out_buffer, "No se pudo mandar mensaje, el usuario \"%s\" no existe!", in_request_data.destino);
+            if (mq_send (all_users[isUserExists(in_request_data.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                perror ("Server: Not able to send message to client");
+            }else{
+                memset(out_buffer, 0, MSG_BUFFER_SIZE);
+            }
+        }*/
     }
     return in_request_data;
 }
 
-int findNextAvailable(){
+int findNextAvailableInbox(struct user tryUser){
+    int i;
+    for(i=0; i<MAX_MESSAGES; i++){
+        if(tryUser.inbox[i][0] == 0){
+            return i;
+        }
+    }
+    return -1;
+}
+
+int findNextAvailableUsers(){
     int i;
     for(i=0; i<MAX_MESSAGES; i++){
         if(all_users[i].qd_id == -1)

@@ -96,7 +96,29 @@ int main (int argc, char **argv)
             getInput(request.destino);
             printf ("Mensaje: ");
             getInput(request.mensaje);
-            printf("Destino: %s\nMensaje: %s\n", request.destino, request.mensaje);
+            //printf("Destino: %s\nMensaje: %s\n", request.destino, request.mensaje);
+
+            sprintf(out_buffer, "%s&%s&%s&%s&%s&", request.queue_name, request.option, request.username, request.destino, request.mensaje);
+
+            // send request
+            if (mq_send (qd_server, out_buffer, strlen (out_buffer), 0) == -1) {
+                perror ("Client: Not able to send message to server");
+                //continue;
+            }else{
+                memset(out_buffer, 0, MSG_BUFFER_SIZE);
+            }
+            memset(in_buffer, 0, MSG_BUFFER_SIZE);
+            if (mq_receive (qd_client, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
+                    perror ("Client: mq_receive");
+                    exit (1);
+            }else{
+                if((strcmp(in_buffer, OK))){
+                    printf("%s\n", in_buffer);
+                }
+                else
+                    printf("%s\n", "Mensaje enviado con exito!");
+            }
+
         }
 
     }
