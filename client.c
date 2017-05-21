@@ -83,10 +83,11 @@ int main (int argc, char **argv)
     printf ("Bienvenido: %s\n", request.username);
 
     while(1){
+        printf("%s", "CMD> ");
         getInput(request.option);
         if(!strcmp(request.option, LOGOUT)){
             printf("Ten un buen dia %s!\n", request.username);
-            return 0;
+            break;
         }else if(!strcmp(request.option, SEND)){
             printf ("Destino: ");
             getInput(request.destino);
@@ -157,6 +158,8 @@ int main (int argc, char **argv)
                 else
                     printf("%s\n", "Mensajes Borrados!");
             }
+        }else{
+            printf("Comando \"%s\" no es soportado.\nComandos soportados: enviar mensaje, ver mensajes, borrar mensajes, cerrar sesion\n", request.option);
         }
     }
     if (mq_close (qd_client) == -1) {
@@ -168,7 +171,7 @@ int main (int argc, char **argv)
         perror ("Client: mq_unlink");
         exit (1);
     }
-    printf ("Client: bye\n");
+    printf ("STATUS: Closed\n");
 
     exit (0);
 }

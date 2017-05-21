@@ -135,8 +135,8 @@ int main (int argc, char **argv)
                 }
             }
         }else if(!strcmp(user_request.request_id, READ)){
-            int inboxCount = findNextAvailableInbox(user_request.username);
             int currentUser = isUserExists(user_request.username);
+            int inboxCount = findNextAvailableInbox(all_users[currentUser]);
             for(i=0; i<inboxCount; i++){
                 strcpy(out_buffer, all_users[currentUser].inbox[i]);
                 if (mq_send (all_users[currentUser].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
