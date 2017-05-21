@@ -16,6 +16,7 @@
 #define CREATE "0"
 #define LOGOUT "cerrar sesion"
 #define SEND "enviar mensaje"
+#define READ "ver mensajes"
 #define OK "OK"
 
 struct client
@@ -24,7 +25,7 @@ struct client
     char option[64];
     char username[64];
     char destino[64];
-    char mensaje[MSG_BUFFER_SIZE];
+    char mensaje[MAX_MSG_SIZE];
 };
 
 int main (int argc, char **argv)
@@ -118,9 +119,34 @@ int main (int argc, char **argv)
                 else
                     printf("%s\n", "Mensaje enviado con exito!");
             }
+        }else if(!strcmp(request.option, READ)){
+            sprintf(out_buffer, "%s&%s&%s&", request.queue_name, request.option, request.username);
+            if (mq_send (qd_server, out_buffer, strlen (out_buffer), 0) == -1) {
+                perror ("Client: Not able to send message to server");
+                //continue;
+            }else{
+                memset(out_buffer, 0, MSG_BUFFER_SIZE);
+            }
+            while(1){
+                memset(in_buffer, 0, MSG_BUFFER_SIZE);
+                if (mq_receive (qd_client, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
+                        perror ("Client: mq_receive");
+                        continue;
+                }else{
+                    if(!strcmp(in_buffer, OK)){
+                        break;
+                    }
+                    else{
+                        char* from = strtok(in_buffer, "&");
+                        char* mensaje = strtok(NULL, "&");
+                        printf("Mensaje de %s: %s\n", from, mensaje);
+                        memset(from, 0, strlen(from));
+                        memset(mensaje, 0, strlen(mensaje));
+                    }
 
+                }
+            }
         }
-
     }
 
     /*char temp_buf [10];
