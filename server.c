@@ -17,6 +17,7 @@
 #define LOGOUT "cerrar sesion"
 #define SEND "enviar mensaje"
 #define READ "ver mensajes"
+#define CLEAR "borrar mensajes"
 #define OK "OK"
 
 struct in_request
@@ -71,8 +72,8 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    char* in_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
-    char* out_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));// [MSG_BUFFER_SIZE];
+    char* in_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));
+    char* out_buffer = (char*)malloc(MSG_BUFFER_SIZE*sizeof(char));
 
     struct in_request user_request;
     static const struct in_request user_request_EmptyStruct;
@@ -87,12 +88,6 @@ int main (int argc, char **argv)
 
         user_request = user_request_EmptyStruct;
         user_request = decode(in_buffer);
-        //printf("ID: %s\n", user_request.user_id);
-        //printf("Request id:%s\n", user_request.request_id);
-        //printf("Username: %s\n", user_request.username);
-        //printf("Queue descriptor: %d\n", user_request.qd_id);
-        //printf("Destino: %s\n", user_request.destino);
-        //printf("Mensaje%s\n", user_request.mensaje);
         if(!strcmp(user_request.request_id, CREATE)){
             int userIndex = isUserExists(user_request.username);
             if( userIndex == -1){
@@ -131,15 +126,6 @@ int main (int argc, char **argv)
                 }else{
                     memset(out_buffer, 0, MSG_BUFFER_SIZE);
                 }
-
-                /*char* tempUser;
-                char* tempMsg;
-                for(j=0; j<=targetInbox; j++){
-                    tempUser = strtok(all_users[destinoInUsers].inbox[j], "&");
-                    tempMsg = strtok(NULL, "&");
-                    printf("Mensaje de %s: %s\n", tempUser, tempMsg);
-                }*/
-
             }else{
                 sprintf(out_buffer, "No se pudo mandar mensaje, el usuario \"%s\" no existe!", user_request.destino);
                 if (mq_send (all_users[isUserExists(user_request.username)].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
@@ -155,10 +141,22 @@ int main (int argc, char **argv)
                 strcpy(out_buffer, all_users[currentUser].inbox[i]);
                 if (mq_send (all_users[currentUser].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
                     perror ("Client: Not able to send message to server");
-                    //continue;
                 }else{
                     memset(out_buffer, 0, MSG_BUFFER_SIZE);
                 }
+            }
+            strcpy(out_buffer, OK);
+            if (mq_send (all_users[currentUser].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
+                perror ("Client: Not able to send message to server");
+                //continue;
+            }else{
+                memset(out_buffer, 0, MSG_BUFFER_SIZE);
+            }
+        }else if(!strcmp(user_request.request_id, CLEAR)){
+            int inboxCount = findNextAvailableInbox(user_request.username);
+            int currentUser = isUserExists(user_request.username);
+            for(i=0; i<inboxCount; i++){
+                memset(all_users[currentUser].inbox[i], 0, strlen(all_users[currentUser].inbox[i]));
             }
             strcpy(out_buffer, OK);
             if (mq_send (all_users[currentUser].qd_id, out_buffer, strlen (out_buffer), 0) == -1) {
